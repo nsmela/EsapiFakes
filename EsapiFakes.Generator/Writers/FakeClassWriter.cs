@@ -7,11 +7,30 @@ public static class FakeClassWriter {
     public static string Write(FakeClassContext ctx) {
         var sb = new StringBuilder();
 
+        // --- HEADER BLOCK ---
+        sb.AppendLine("// ===========================================================================");
+        sb.AppendLine("// ESAPI FAKE GENERATOR");
+        sb.AppendLine("// ===========================================================================");
+        sb.AppendLine($"// Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine($"// Source DLL: {ctx.SourceAssembly.Name}");
+        sb.AppendLine($"// Version:    {ctx.SourceAssembly.Version}");
+        sb.AppendLine($"// Token:      {ctx.SourceAssembly.PublicKeyToken}");
+        sb.AppendLine("// ===========================================================================");
+        sb.AppendLine();
+
         // Standard Usings
         sb.AppendLine("using System;");
         sb.AppendLine("using System.Collections.Generic;");
-        sb.AppendLine("using VMS.TPS.Common.Model.Types;"); // Real Types DLL
-        sb.AppendLine("");
+        sb.AppendLine("using System.Xml;");
+        sb.AppendLine("using VMS.TPS.Common.Model.Types;");
+
+        // Dynamic Usings (Collected from TypeReader)
+        // Sort them for clean output
+        foreach (var ns in ctx.Usings.OrderBy(x => x)) {
+            sb.AppendLine($"using {ns};");
+        }
+
+        sb.AppendLine();
         sb.AppendLine($"namespace {ctx.Namespace}");
         sb.AppendLine("{");
 

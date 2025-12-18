@@ -6,14 +6,26 @@ namespace EsapiFakes.Generator.Services;
 
 public class TypeReader {
 
+    private readonly AssemblyInfo _sourceInfo;
+
+    // Use MinimallyQualified so the code reads "MeshGeometry3D" not "System.Windows..."
+    private static readonly SymbolDisplayFormat _format = SymbolDisplayFormat.MinimallyQualifiedFormat;
+
+    public TypeReader(AssemblyInfo sourceInfo) {
+        _sourceInfo = sourceInfo;
+    }
+
     public FakeClassContext BuildContext(INamedTypeSymbol symbol) {
         // 1. Inheritance (Just the raw name)
         string baseClassName = string.Empty;
+        var usedNamespaces = new HashSet<string>();
+
         if (symbol.BaseType is not null &&
             symbol.BaseType.SpecialType != SpecialType.System_Object &&
             symbol.BaseType.SpecialType != SpecialType.System_Enum &&
             symbol.BaseType.SpecialType != SpecialType.System_ValueType) {
             baseClassName = symbol.BaseType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+            CollectNamespaces(symbol.BaseType, usedNamespaces);
         }
 
         // 2. Members (Properties & Methods)
@@ -21,10 +33,12 @@ public class TypeReader {
 
         // Get all public members (Static AND Instance)
         var rawMembers = symbol.GetMembers()
-            .Where(m => m.DeclaredAccessibility == Accessibility.Public && !m.IsImplicitlyDeclared);
+            .Where(m => m.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Public && !m.IsImplicitlyDeclared);
 
         foreach (var m in rawMembers) {
             if (m is IPropertySymbol prop) {
+                CollectNamespaces(prop.Type, usedNamespaces);
+
                 members.Add(new FakeMemberContext(
                     Name: prop.Name,
                     ReturnType: prop.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
@@ -35,15 +49,22 @@ public class TypeReader {
                     HasSetter: prop.SetMethod is not null // We will FORCE setters in the fake anyway
                 ));
             } else if (m is IMethodSymbol method && method.MethodKind == MethodKind.Ordinary) {
+                CollectNamespaces(method.ReturnType, usedNamespaces);
+
                 // Build parameter string: "int a, string b"
-                var paramList = string.Join(", ", method.Parameters.Select(p =>
-                    $"{p.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {p.Name}"));
+                var paramsList = new List<string>();
+                foreach (var p in method.Parameters) {
+                    CollectNamespaces(p.Type, usedNamespaces);
+                    paramsList.Add($"{p.Type.ToDisplayString(_format)} {p.Name}");
+                }
+
+                string paramString = string.Join(", ", paramsList);
 
                 members.Add(new FakeMemberContext(
                     Name: method.Name,
-                    ReturnType: method.ReturnType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
-                    Parameters: paramList,
-                    OriginalSignature: $"({paramList})",
+                    ReturnType: method.ReturnType.ToDisplayString(_format),
+                    Parameters: paramString,
+                    OriginalSignature: $"({paramString})",
                     IsProperty: false,
                     IsStatic: method.IsStatic,
                     HasSetter: false
@@ -53,9 +74,14 @@ public class TypeReader {
 
         // 3. Recursion for Nested Types
         var nested = symbol.GetTypeMembers()
-            .Where(t => t.DeclaredAccessibility == Accessibility.Public)
+            .Where(t => t.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Public)
             .Select(BuildContext)
             .ToImmutableList();
+
+        // 4. Cleanup Namespaces
+        usedNamespaces.Remove(symbol.ContainingNamespace.ToDisplayString()); // Remove Self
+        usedNamespaces.Remove("System"); // Usually included by default
+        usedNamespaces.Remove("<global namespace>");
 
         return new FakeClassContext(
             Name: symbol.Name,
@@ -70,7 +96,24 @@ public class TypeReader {
                 ? symbol.GetMembers().OfType<IFieldSymbol>().Select(f => f.Name).ToImmutableList()
                 : ImmutableList<string>.Empty,
             Members: members.ToImmutableList(),
-            NestedTypes: nested
+            NestedTypes: nested,
+            Usings: usedNamespaces.ToImmutableHashSet(),
+            SourceAssembly: _sourceInfo
         );
+    }
+
+    // Recursively finds namespaces in generics (e.g. List<MeshGeometry3D>)
+    private void CollectNamespaces(ITypeSymbol symbol, HashSet<string> namespaces) {
+        if (symbol == null || symbol.SpecialType != SpecialType.None) return;
+
+        if (symbol.ContainingNamespace != null && !string.IsNullOrEmpty(symbol.ContainingNamespace.Name)) {
+            namespaces.Add(symbol.ContainingNamespace.ToDisplayString());
+        }
+
+        if (symbol is INamedTypeSymbol namedType && namedType.IsGenericType) {
+            foreach (var arg in namedType.TypeArguments) {
+                CollectNamespaces(arg, namespaces);
+            }
+        }
     }
 }

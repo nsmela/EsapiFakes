@@ -2,6 +2,13 @@
 
 namespace EsapiFakes.Generator.Contexts;
 
+public record AssemblyInfo(
+    string Name,
+    string Version,
+    string PublicKeyToken,
+    string FilePath
+);
+
 // A streamlined context focused ONLY on identity and members
 public record FakeClassContext(
     string Name,                // e.g. "PlanSetup"
@@ -14,7 +21,9 @@ public record FakeClassContext(
     bool IsStruct,
     ImmutableList<string> EnumMembers,
     ImmutableList<FakeMemberContext> Members,
-    ImmutableList<FakeClassContext> NestedTypes
+    ImmutableList<FakeClassContext> NestedTypes,
+    ImmutableHashSet<string> Usings,
+    AssemblyInfo SourceAssembly
 );
 
 public record FakeMemberContext(
