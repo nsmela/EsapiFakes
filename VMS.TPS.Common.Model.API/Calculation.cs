@@ -1,7 +1,7 @@
 // ===========================================================================
 // ESAPI FAKE GENERATOR
 // ===========================================================================
-// Generated: 2025-12-18 21:15:19
+// Generated: 2025-12-18 21:24:15
 // Source DLL: VMS.TPS.Common.Model.API
 // Version:    1.0.700.247
 // Token:      305b81e210ec4b89
@@ -9,13 +9,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Windows;
 using System.Xml;
 using VMS.TPS.Common.Model.Types;
 using System.Collections.Generic;
 
 namespace VMS.TPS.Common.Model.API
 {
-    public  class Calculation : Object
+    public  partial class Calculation : Object
     {
         public Calculation() { }
         public List<Algorithm> GetInstalledAlgorithms()  => default;
@@ -23,11 +24,11 @@ namespace VMS.TPS.Common.Model.API
         public IEnumerable<DVHEstimationModelStructure> GetDvhEstimationModelStructures(Guid modelId)  => default;
         public IEnumerable<DVHEstimationModelSummary> GetDvhEstimationModelSummaries()  => default;
         public string AlgorithmsRootPath { get; set; }
-        public  class Algorithm : ValueType
+        public  partial class Algorithm : ValueType
         {
             public Algorithm() { }
         }
-        public  class CalculationModel : ValueType
+        public  partial class CalculationModel : ValueType
         {
             public CalculationModel() { }
         }

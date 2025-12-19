@@ -20,10 +20,12 @@ public class TypeReader {
         string baseClassName = string.Empty;
         var usedNamespaces = new HashSet<string>();
 
-        if (symbol.BaseType is not null &&
-            symbol.BaseType.SpecialType != SpecialType.System_Object &&
-            symbol.BaseType.SpecialType != SpecialType.System_Enum &&
-            symbol.BaseType.SpecialType != SpecialType.System_ValueType) {
+        if (symbol.BaseType is not null
+            && symbol.TypeKind != TypeKind.Struct
+            && symbol.TypeKind != TypeKind.Enum
+            && symbol.BaseType.SpecialType != SpecialType.System_Object
+            && symbol.BaseType.SpecialType != SpecialType.System_Enum
+            && symbol.BaseType.SpecialType != SpecialType.System_ValueType) {
             baseClassName = symbol.BaseType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
             CollectNamespaces(symbol.BaseType, usedNamespaces);
         }
@@ -39,12 +41,36 @@ public class TypeReader {
             if (m is IPropertySymbol prop) {
                 CollectNamespaces(prop.Type, usedNamespaces);
 
+                // FIX: Detect Indexers
+                if (prop.IsIndexer)
+                {
+                    var paramList = string.Join(", ", prop.Parameters.Select(p =>
+                        $"{p.Type.ToDisplayString(_format)} {p.Name}"));
+
+                    // Indexers need parameter types' namespaces too
+                    foreach (var p in prop.Parameters)
+                        CollectNamespaces(p.Type, usedNamespaces);
+
+                    members.Add(new FakeMemberContext(
+                        Name: "this", // Indexers are always named "this" in C#
+                        ReturnType: prop.Type.ToDisplayString(_format),
+                        Parameters: $"[{paramList}]", // Store brackets here for easier writing
+                        OriginalSignature: "",
+                        IsProperty: true,
+                        IsIndexer: true,
+                        IsStatic: prop.IsStatic,
+                        HasSetter: prop.SetMethod != null
+                    ));
+                    continue; // Skip the rest of the property processing
+                }
+
                 members.Add(new FakeMemberContext(
                     Name: prop.Name,
                     ReturnType: prop.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
                     Parameters: "",
                     OriginalSignature: "",
                     IsProperty: true,
+                    IsIndexer: false,
                     IsStatic: prop.IsStatic,
                     HasSetter: prop.SetMethod is not null // We will FORCE setters in the fake anyway
                 ));
@@ -66,6 +92,7 @@ public class TypeReader {
                     Parameters: paramString,
                     OriginalSignature: $"({paramString})",
                     IsProperty: false,
+                    IsIndexer: false,
                     IsStatic: method.IsStatic,
                     HasSetter: false
                 ));

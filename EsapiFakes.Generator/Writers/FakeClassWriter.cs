@@ -21,13 +21,16 @@ public static class FakeClassWriter {
         // Standard Usings
         sb.AppendLine("using System;");
         sb.AppendLine("using System.Collections.Generic;");
+        sb.AppendLine("using System.Windows;");
         sb.AppendLine("using System.Xml;");
         sb.AppendLine("using VMS.TPS.Common.Model.Types;");
 
         // Dynamic Usings (Collected from TypeReader)
         // Sort them for clean output
-        foreach (var ns in ctx.Usings.OrderBy(x => x)) {
-            sb.AppendLine($"using {ns};");
+        foreach (var ns in ctx.Usings.OrderBy(x => x))
+        {
+            if (ns != "System.Windows") // Avoid duplicate
+                sb.AppendLine($"using {ns};");
         }
 
         sb.AppendLine();
@@ -51,12 +54,11 @@ public static class FakeClassWriter {
         }
 
         string staticMod = ctx.IsStatic ? "static" : "";
-        // We REMOVE 'sealed' so we can inherit in tests if we really want to, 
-        // but keeping it 'public' is enough.
         string classMod = ctx.IsStruct ? "struct" : "class";
         string inheritance = string.IsNullOrEmpty(ctx.BaseClass) ? "" : $" : {ctx.BaseClass}";
 
-        sb.AppendLine($"{indent}public {staticMod} {classMod} {ctx.Name}{inheritance}");
+        // We force 'partial' so users can extend these fakes manually if needed
+        sb.AppendLine($"{indent}public {staticMod} partial {classMod} {ctx.Name}{inheritance}");
         sb.AppendLine($"{indent}{{");
 
         // 2. Constructor (Force a public parameterless one for easy instantiation)
@@ -69,8 +71,16 @@ public static class FakeClassWriter {
             string mod = m.IsStatic ? "public static" : "public";
 
             if (m.IsProperty) {
-                // TURN READ-ONLY INTO READ-WRITE for setting up tests
-                sb.AppendLine($"{indent}    {mod} {m.ReturnType} {m.Name} {{ get; set; }}");
+                if (m.IsIndexer)
+                {
+                    // Indexer syntax: public Beam this[string id] { get; set; }
+                    // Note: m.Parameters contains "[string id]" from TypeReader
+                    sb.AppendLine($"{indent}    {mod} {m.ReturnType} this{m.Parameters} {{ get; set; }}");
+                } else
+                {
+                    // Standard Property
+                    sb.AppendLine($"{indent}    {mod} {m.ReturnType} {m.Name} {{ get; set; }}");
+                }
             } else {
                 // Methods return default
                 string returnDefault = m.ReturnType == "void" ? "" : " => default;";

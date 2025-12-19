@@ -32,6 +32,7 @@ public record FakeMemberContext(
     string Parameters,          // e.g. "string id, string name"
     string OriginalSignature,   // e.g. "(string id, string name)"
     bool IsProperty,
+    bool IsIndexer,
     bool IsStatic,
     bool HasSetter
 );
