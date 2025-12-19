@@ -46,8 +46,7 @@ namespace EsapiFakes.Generator.Tests {
             // Find the Symbol
             var symbol = compilation.GetTypeByMetadataName(fullyQualifiedName);
 
-            if (symbol == null) {
-                // FIX: Use the renamed visitor class
+            if (symbol is null) {
                 var visitor = new DebugVisitor();
                 visitor.Visit(compilation.GlobalNamespace);
                 throw new Exception($"Could not find symbol '{fullyQualifiedName}' in loaded assembly.");
@@ -56,11 +55,55 @@ namespace EsapiFakes.Generator.Tests {
             return symbol;
         }
 
-        class DebugVisitor : SymbolVisitor {
-            public override void VisitNamespace(INamespaceSymbol symbol) {
-                // Recursively visit all members to help debug what Roslyn actually sees
-                foreach (var member in symbol.GetMembers()) member.Accept(this);
+        class DebugVisitor : SymbolVisitor
+        {
+            public override void VisitNamespace(INamespaceSymbol symbol)
+            {
+                foreach (var member in symbol.GetMembers())
+                {
+                    if (member is INamespaceSymbol ns)
+                    {
+                        ns.Accept(this);
+                    }
+                    else if (member is INamedTypeSymbol type)
+                    {
+                        // Print found types to Test Output
+                        Console.WriteLine($"Found: {type.ToDisplayString()}");
+                    }
+                }
             }
+        }
+
+        public static INamespaceSymbol GetGlobalNamespace(string dllPath)
+        {
+            // Re-use the existing loading logic, just return the root namespace
+            // (You can copy-paste the reference loading block from GetSymbolFromAssembly here)
+            if (!File.Exists(dllPath))
+                throw new FileNotFoundException($"DLL not found: {dllPath}");
+
+            var references = new List<MetadataReference>
+            {
+                MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+                MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
+                MetadataReference.CreateFromFile(typeof(System.Collections.BitArray).Assembly.Location),
+                MetadataReference.CreateFromFile(typeof(System.Windows.Point).Assembly.Location),
+                MetadataReference.CreateFromFile(typeof(System.Windows.Media.Color).Assembly.Location),
+                MetadataReference.CreateFromFile(typeof(System.Windows.Media.Media3D.MeshGeometry3D).Assembly.Location),
+                MetadataReference.CreateFromFile(dllPath)
+            };
+
+            // Add Types.dll if present
+            string libDir = Path.GetDirectoryName(dllPath);
+            string typesPath = Path.Combine(libDir, "VMS.TPS.Common.Model.Types.dll");
+            if (File.Exists(typesPath))
+                references.Add(MetadataReference.CreateFromFile(typesPath));
+
+            var compilation = CSharpCompilation.Create("Scanner", references: references);
+
+            // Get the Assembly Symbol for the Varian DLL specifically
+            var assemblySymbol = compilation.GetAssemblyOrModuleSymbol(references.First(r => (r as PortableExecutableReference).FilePath == dllPath)) as IAssemblySymbol;
+
+            return assemblySymbol.GlobalNamespace;
         }
     }
 }
