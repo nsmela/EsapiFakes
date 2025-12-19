@@ -20,14 +20,25 @@ public class TypeReader {
         string baseClassName = string.Empty;
         var usedNamespaces = new HashSet<string>();
 
-        if (symbol.BaseType is not null
-            && symbol.TypeKind != TypeKind.Struct
-            && symbol.TypeKind != TypeKind.Enum
-            && symbol.BaseType.SpecialType != SpecialType.System_Object
-            && symbol.BaseType.SpecialType != SpecialType.System_Enum
-            && symbol.BaseType.SpecialType != SpecialType.System_ValueType) {
-            baseClassName = symbol.BaseType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
-            CollectNamespaces(symbol.BaseType, usedNamespaces);
+        if (symbol.BaseType is not null){
+            // Robust check for System Types when SpecialType returns None
+            bool isObject = IsSystemType(symbol.BaseType, "Object");
+            bool isEnum = IsSystemType(symbol.BaseType, "Enum");
+            bool isValueType = IsSystemType(symbol.BaseType, "ValueType");
+
+            // LOGIC:
+            // 1. Never inherit from Object (implicit)
+            // 2. Never inherit from Enum (implicit)
+            // 3. Never inherit from ValueType (implicit)
+            // 4. If *I* am a Struct or Enum, I cannot have an explicit base class anyway.
+
+            bool isExplicitBase = !isObject && !isEnum && !isValueType;
+            bool canHaveBase = symbol.TypeKind != TypeKind.Struct && symbol.TypeKind != TypeKind.Enum;
+
+            if (isExplicitBase && canHaveBase) {
+                baseClassName = symbol.BaseType.ToDisplayString(_format);
+                CollectNamespaces(symbol.BaseType, usedNamespaces);
+            }
         }
 
         // 2. Members (Properties & Methods)
@@ -41,7 +52,7 @@ public class TypeReader {
             if (m is IPropertySymbol prop) {
                 CollectNamespaces(prop.Type, usedNamespaces);
 
-                // FIX: Detect Indexers
+                // Detect Indexers
                 if (prop.IsIndexer)
                 {
                     var paramList = string.Join(", ", prop.Parameters.Select(p =>
@@ -142,5 +153,17 @@ public class TypeReader {
                 CollectNamespaces(arg, namespaces);
             }
         }
+    }
+
+    // HELPER: Checks SpecialType first, then falls back to Name/Namespace
+    private bool IsSystemType(INamedTypeSymbol symbol, string typeName) {
+        // 1. Fast Check: SpecialType
+        if (typeName == "Object" && symbol.SpecialType == SpecialType.System_Object) return true;
+        if (typeName == "Enum" && symbol.SpecialType == SpecialType.System_Enum) return true;
+        if (typeName == "ValueType" && symbol.SpecialType == SpecialType.System_ValueType) return true;
+
+        // 2. Fallback Check: Name & Namespace match
+        return symbol.Name == typeName &&
+               symbol.ContainingNamespace?.ToDisplayString() == "System";
     }
 }

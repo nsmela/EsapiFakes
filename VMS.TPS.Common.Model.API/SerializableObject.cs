@@ -1,7 +1,7 @@
 // ===========================================================================
 // ESAPI FAKE GENERATOR
 // ===========================================================================
-// Generated: 2025-12-18 21:24:15
+// Generated: 2025-12-19 08:08:01
 // Source DLL: VMS.TPS.Common.Model.API
 // Version:    1.0.700.247
 // Token:      305b81e210ec4b89
@@ -17,7 +17,7 @@ using System.Xml.Schema;
 
 namespace VMS.TPS.Common.Model.API
 {
-    public  partial class SerializableObject : Object
+    public  partial class SerializableObject
     {
         public XmlSchema GetSchema()  => default;
         public void ReadXml(XmlReader reader) { }

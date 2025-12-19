@@ -1,7 +1,7 @@
 // ===========================================================================
 // ESAPI FAKE GENERATOR
 // ===========================================================================
-// Generated: 2025-12-18 21:24:15
+// Generated: 2025-12-19 08:08:01
 // Source DLL: VMS.TPS.Common.Model.API
 // Version:    1.0.700.247
 // Token:      305b81e210ec4b89
@@ -16,10 +16,11 @@ using System.Collections.Generic;
 using System.Reflection;
 using VMS.TPS.Common.Model;
 using VMS.TPS.Common.Model.Types;
+using Microsoft.Extensions.Logging;
 
 namespace VMS.TPS.Common.Model.API
 {
-    public  partial class Globals : Object
+    public  partial class Globals
     {
         public Globals() { }
         public static void Initialize(ILogger logger, AssemblyName executingAssemblyName) { }

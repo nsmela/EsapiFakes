@@ -74,6 +74,7 @@ namespace EsapiFakes.Generator.Tests {
 
             INamedTypeSymbol parentClass = null;
             INamedTypeSymbol nestedType = null;
+            bool isStruct = false;
 
             foreach (var type in GetAllTypes(globalNamespace))
             {
@@ -84,8 +85,6 @@ namespace EsapiFakes.Generator.Tests {
                 {
                     parentClass = type;
                     nestedType = nested;
-                    if (nestedType.Name == "Algorithm")
-                    { continue; }
                     break; // Found one!
                 }
             }
@@ -170,7 +169,7 @@ namespace EsapiFakes.Generator.Tests {
             Assert.That(code, Does.Contain("using System.Windows.Media;"));
 
             // 3. Check Class Definition
-            Assert.That(code, Does.Contain("public  class Structure : ApiDataObject"));
+            Assert.That(code, Does.Contain("public  partial class Structure : ApiDataObject"));
 
             // 4. Check Property (Read/Write conversion)
             // Real ESAPI: public Color Color { get; }

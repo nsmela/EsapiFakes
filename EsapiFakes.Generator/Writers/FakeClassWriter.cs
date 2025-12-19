@@ -75,7 +75,9 @@ public static class FakeClassWriter {
                 {
                     // Indexer syntax: public Beam this[string id] { get; set; }
                     // Note: m.Parameters contains "[string id]" from TypeReader
-                    sb.AppendLine($"{indent}    {mod} {m.ReturnType} this{m.Parameters} {{ get; set; }}");
+                    var indexer = m.Parameters; // remove last ']'
+                    sb.AppendLine($"{indent}    {mod} List<{m.ReturnType}> _collection = default;");
+                    sb.AppendLine($"{indent}    {mod} {m.ReturnType} this{m.Parameters} => _collection[{indexer}];");
                 } else
                 {
                     // Standard Property
